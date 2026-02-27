@@ -37,11 +37,62 @@ pub struct SearchResult {
     pub snippet: String,
 }
 
-fn get_diary_root() -> PathBuf {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct AppSettings {
+    diary_root: Option<String>,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self { diary_root: None }
+    }
+}
+
+fn get_settings_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| dirs::home_dir().expect("Could not find home directory").join(".config"))
+        .join("diary-app")
+        .join("settings.json")
+}
+
+fn load_settings() -> AppSettings {
+    let path = get_settings_path();
+    if path.exists() {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    } else {
+        AppSettings::default()
+    }
+}
+
+fn save_settings(settings: &AppSettings) -> Result<(), String> {
+    let path = get_settings_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create settings directory: {}", e))?;
+    }
+    let json = serde_json::to_string_pretty(settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    fs::write(&path, json)
+        .map_err(|e| format!("Failed to write settings: {}", e))?;
+    Ok(())
+}
+
+fn default_diary_root() -> PathBuf {
     dirs::home_dir()
         .expect("Could not find home directory")
         .join("Documents")
         .join("Diary")
+}
+
+fn get_diary_root() -> PathBuf {
+    let settings = load_settings();
+    match settings.diary_root {
+        Some(ref path) if !path.is_empty() => PathBuf::from(path),
+        _ => default_diary_root(),
+    }
 }
 
 fn get_diary_path(year: &str, month: &str, day: &str) -> PathBuf {
@@ -54,6 +105,36 @@ fn get_diary_path(year: &str, month: &str, day: &str) -> PathBuf {
 #[tauri::command]
 fn get_diary_root_path() -> String {
     get_diary_root().to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn get_storage_path() -> String {
+    get_diary_root().to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn set_storage_path(path: &str) -> Result<String, String> {
+    let path_buf = PathBuf::from(path);
+
+    // Verify the path exists or can be created
+    if !path_buf.exists() {
+        fs::create_dir_all(&path_buf)
+            .map_err(|e| format!("Failed to create directory: {}", e))?;
+    }
+
+    let mut settings = load_settings();
+    settings.diary_root = Some(path.to_string());
+    save_settings(&settings)?;
+
+    Ok(path.to_string())
+}
+
+#[tauri::command]
+fn reset_storage_path() -> Result<String, String> {
+    let mut settings = load_settings();
+    settings.diary_root = None;
+    save_settings(&settings)?;
+    Ok(default_diary_root().to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -292,8 +373,12 @@ async fn fetch_location() -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_diary_root_path,
+            get_storage_path,
+            set_storage_path,
+            reset_storage_path,
             read_entry,
             write_entry,
             create_entry_with_template,

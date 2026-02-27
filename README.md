@@ -12,6 +12,7 @@ All entries are stored as plain text files on your machine — no cloud, no acco
 - **"On This Day"** — view past entries from the same date in previous years
 - **Full-text search** — search across all diary entries instantly
 - **Location tagging** — automatically tags entries with your approximate location (via ipinfo.io)
+- **Configurable storage** — choose where to store your diary entries via Settings
 - **Keyboard-driven** — full set of shortcuts for fast navigation
 
 ### Keyboard Shortcuts
@@ -27,10 +28,10 @@ All entries are stored as plain text files on your machine — no cloud, no acco
 
 ## Storage
 
-Entries are plain `.txt` files stored in `~/Documents/Diary/` with this structure:
+Entries are plain `.txt` files organized by year and month:
 
 ```
-~/Documents/Diary/
+<diary-root>/
   2025/
     01/
       2025-01-15.txt
@@ -39,6 +40,8 @@ Entries are plain `.txt` files stored in `~/Documents/Diary/` with this structur
   2026/
     ...
 ```
+
+By default, entries are stored in `~/Documents/Diary/`. You can change this to any folder via the **Settings** button (gear icon) in the sidebar. Your preference is saved to `~/.config/diary-app/settings.json` and persists across sessions.
 
 Each new entry is created from a template:
 
@@ -104,6 +107,7 @@ src/                        # React frontend
     EntryHeader.tsx         # Date display + actions
     OnThisDay.tsx           # Past entries panel
     EmptyState.tsx          # Empty state prompt
+    SettingsDialog.tsx      # Storage location settings
   stores/diaryStore.ts      # Zustand state management
   hooks/useKeyboardShortcuts.ts
   lib/tauri.ts              # Tauri command wrappers

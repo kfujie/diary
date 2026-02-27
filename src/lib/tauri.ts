@@ -91,3 +91,15 @@ export async function fetchLocation(): Promise<string> {
     return "Location unavailable";
   }
 }
+
+export async function getStoragePath(): Promise<string> {
+  return invoke<string>("get_storage_path");
+}
+
+export async function setStoragePath(path: string): Promise<string> {
+  return invoke<string>("set_storage_path", { path });
+}
+
+export async function resetStoragePath(): Promise<string> {
+  return invoke<string>("reset_storage_path");
+}

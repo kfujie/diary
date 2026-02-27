@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { SettingsDialog } from "@/components/SettingsDialog";
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,6 +13,7 @@ import {
   BookOpen,
   PenLine,
   MapPin,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +47,7 @@ export function Sidebar({ className }: SidebarProps) {
 
   const [viewDate, setViewDate] = useState(selectedDate);
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Update view date when selected date changes
   useEffect(() => {
@@ -148,8 +151,20 @@ export function Sidebar({ className }: SidebarProps) {
     );
   };
 
+  const handleStoragePathChanged = () => {
+    // Reload current entry and calendar data after path change
+    loadEntry(selectedDate);
+  };
+
   return (
     <div className={cn("flex flex-col h-full bg-muted/30", className)}>
+      {/* Settings Dialog */}
+      <SettingsDialog
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        onStoragePathChanged={handleStoragePathChanged}
+      />
+
       {/* Header */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-4">
@@ -157,14 +172,24 @@ export function Sidebar({ className }: SidebarProps) {
             <BookOpen className="h-5 w-5" />
             Diary
           </h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSearch}
-            className="h-8 w-8"
-          >
-            {showSearch ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowSettings(true)}
+              className="h-8 w-8"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSearch}
+              className="h-8 w-8"
+            >
+              {showSearch ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
 
         {/* Search */}
