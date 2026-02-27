@@ -7,9 +7,9 @@ use walkdir::WalkDir;
 const DIARY_TEMPLATE: &str = r#"
 Diary Entry for {DATE}
 
-《始めに》
+Beginning:
 
-《終わりに》
+End:
 
 Location: {LOCATION}
 "#;

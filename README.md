@@ -45,9 +45,9 @@ Each new entry is created from a template:
 ```
 Diary Entry for 2025-02-27
 
-《始めに》
+Beginning:
 
-《終わりに》
+End:
 
 Location: Tokyo, Tokyo, JP
 ```
