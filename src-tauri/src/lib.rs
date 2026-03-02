@@ -345,28 +345,92 @@ fn get_all_entry_dates() -> Vec<String> {
 }
 
 #[tauri::command]
-async fn fetch_location() -> Result<String, String> {
+async fn reverse_geocode(lat: f64, lon: f64) -> Result<String, String> {
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(3))
+        .timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| e.to_string())?;
 
+    let url = format!(
+        "https://nominatim.openstreetmap.org/reverse?format=json&lat={}&lon={}&zoom=18&addressdetails=1",
+        lat, lon
+    );
+
     let response = client
-        .get("https://ipinfo.io/json")
+        .get(&url)
+        .header("User-Agent", "DiaryApp/0.1")
         .send()
         .await
-        .map_err(|e| format!("Failed to fetch location: {}", e))?;
+        .map_err(|e| format!("Reverse geocode request failed: {}", e))?;
 
     let data: serde_json::Value = response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse location: {}", e))?;
+        .map_err(|e| format!("Failed to parse geocode response: {}", e))?;
 
-    let city = data.get("city").and_then(|v| v.as_str()).unwrap_or("Unknown City");
-    let region = data.get("region").and_then(|v| v.as_str()).unwrap_or("Unknown Region");
-    let country = data.get("country").and_then(|v| v.as_str()).unwrap_or("Unknown Country");
+    if let Some(address) = data.get("address") {
+        let parts: Vec<&str> = [
+            address.get("road").and_then(|v| v.as_str()),
+            address.get("neighbourhood").and_then(|v| v.as_str()),
+            address.get("suburb").and_then(|v| v.as_str())
+                .or_else(|| address.get("city_district").and_then(|v| v.as_str())),
+            address.get("city").and_then(|v| v.as_str())
+                .or_else(|| address.get("town").and_then(|v| v.as_str()))
+                .or_else(|| address.get("village").and_then(|v| v.as_str())),
+            address.get("state").and_then(|v| v.as_str())
+                .or_else(|| address.get("province").and_then(|v| v.as_str())),
+            address.get("country").and_then(|v| v.as_str()),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
 
-    Ok(format!("{}, {}, {}", city, region, country))
+        if !parts.is_empty() {
+            return Ok(parts.join(", "));
+        }
+    }
+
+    // Fall back to display_name if address parsing fails
+    if let Some(display) = data.get("display_name").and_then(|v| v.as_str()) {
+        return Ok(display.to_string());
+    }
+
+    Err("Could not determine address from coordinates".to_string())
+}
+
+#[tauri::command]
+async fn fetch_location() -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut last_error = String::from("Unknown error");
+
+    for attempt in 0..3 {
+        if attempt > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(500 * attempt as u64)).await;
+        }
+
+        match client.get("https://ipinfo.io/json").send().await {
+            Ok(response) => match response.json::<serde_json::Value>().await {
+                Ok(data) => {
+                    let city = data.get("city").and_then(|v| v.as_str()).unwrap_or("Unknown City");
+                    let region = data.get("region").and_then(|v| v.as_str()).unwrap_or("Unknown Region");
+                    let country = data.get("country").and_then(|v| v.as_str()).unwrap_or("Unknown Country");
+                    return Ok(format!("{}, {}, {}", city, region, country));
+                }
+                Err(e) => {
+                    last_error = format!("Failed to parse location (attempt {}): {}", attempt + 1, e);
+                }
+            },
+            Err(e) => {
+                last_error = format!("Failed to fetch location (attempt {}): {}", attempt + 1, e);
+            }
+        }
+    }
+
+    Err(last_error)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -387,7 +451,8 @@ pub fn run() {
             search_entries,
             get_entries_for_month,
             get_all_entry_dates,
-            fetch_location
+            fetch_location,
+            reverse_geocode
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

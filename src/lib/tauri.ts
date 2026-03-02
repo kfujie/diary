@@ -84,7 +84,49 @@ export async function getAllEntryDates(): Promise<string[]> {
   return invoke<string[]>("get_all_entry_dates");
 }
 
+async function reverseGeocode(lat: number, lon: number): Promise<string> {
+  return invoke<string>("reverse_geocode", { lat, lon });
+}
+
+function getBrowserGeolocation(
+  attempt: number,
+  maxAttempts: number
+): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Geolocation not supported"));
+      return;
+    }
+
+    const tryAttempt = (current: number) => {
+      navigator.geolocation.getCurrentPosition(resolve, (error) => {
+        if (current < maxAttempts - 1) {
+          setTimeout(() => tryAttempt(current + 1), 1000);
+        } else {
+          reject(error);
+        }
+      }, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      });
+    };
+
+    tryAttempt(attempt);
+  });
+}
+
 export async function fetchLocation(): Promise<string> {
+  // Try GPS-based geolocation first (high accuracy)
+  try {
+    const position = await getBrowserGeolocation(0, 3);
+    const { latitude, longitude } = position.coords;
+    const address = await reverseGeocode(latitude, longitude);
+    return address;
+  } catch {
+    // GPS failed — fall back to IP-based geolocation
+  }
+
   try {
     return await invoke<string>("fetch_location");
   } catch {

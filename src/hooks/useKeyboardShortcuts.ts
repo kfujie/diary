@@ -31,16 +31,16 @@ export function useKeyboardShortcuts() {
         loadEntry(new Date());
       }
 
-      // Cmd/Ctrl + Left Arrow: Previous day
-      if ((e.metaKey || e.ctrlKey) && e.key === "ArrowLeft") {
+      // Cmd/Ctrl + Option/Alt + Left Arrow: Previous day
+      if ((e.metaKey || e.ctrlKey) && e.altKey && e.key === "ArrowLeft") {
         e.preventDefault();
         const prevDay = new Date(selectedDate);
         prevDay.setDate(prevDay.getDate() - 1);
         loadEntry(prevDay);
       }
 
-      // Cmd/Ctrl + Right Arrow: Next day
-      if ((e.metaKey || e.ctrlKey) && e.key === "ArrowRight") {
+      // Cmd/Ctrl + Option/Alt + Right Arrow: Next day
+      if ((e.metaKey || e.ctrlKey) && e.altKey && e.key === "ArrowRight") {
         e.preventDefault();
         const nextDay = new Date(selectedDate);
         nextDay.setDate(nextDay.getDate() + 1);
